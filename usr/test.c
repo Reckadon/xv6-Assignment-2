@@ -371,13 +371,13 @@ int main(int argc, char *argv[]) {
     // No need for random seed since we removed srand
     
     // Run all tests
-    // test_inheritance();
-    // test_sleep_clean();
+    test_inheritance();
+    test_sleep_clean();
     test_fair();
-    // test_boost_basic();
-    // test_boost_accumulate();
-    // test_multi_sleepers();
-    // test_boost_and_semantics();
+    test_boost_basic();
+    test_boost_accumulate();
+    test_multi_sleepers();
+    test_boost_and_semantics();
     
     printf(1, "\n=== Test Suite Complete ===\n");
     printf(1, "Review output above for PASS/FAIL results\n");
