@@ -1,91 +1,39 @@
-# xv6-pi5 Documentation
+# Operating Systems Assignment 2: Boosted Lottery Scheduler for xv6
+
+---
 
 ## Overview
-xv6-pi5 is a port of the MIT xv6 teaching operating system to the ARM architecture, with a focus on compatibility with the Raspberry Pi 5 platform. It provides a minimal Unix-like kernel, shell, file system, and basic user programs, serving as a hands-on resource for learning operating system fundamentals on ARM hardware.
 
-## Repository Structure
-| Path/Directory | Purpose |
-|----------------|---------|
-| `arm.c`, `arm.h` | ARM CPU initialization, context switching, MMU setup |
-| `asm.S` | Assembly routines for low-level CPU and trap handling |
-| `entry.S` | Kernel entry point and bootstrap code |
-| `swtch.S` | Context switch (process switching) assembly routine |
-| `trap_asm.S` | Trap and interrupt entry assembly |
-| `mmu.h` | ARM MMU and paging definitions |
-| `kernel.ld` | Linker script for ARM memory layout |
-| `initcode.S` | Minimal user-mode program for system initialization |
-| `device/` | Device drivers (UART, timer, interrupt controller, etc.) |
-| `console.c` | Console (UART) driver and kernel I/O |
-| `main.c`, `start.c` | Kernel initialization and main loop |
-| `Makefile` | Build system configuration for ARM toolchain |
-| `usr/` | User programs (e.g., sh, ls, cat, etc.) |
-| `tools/` | Build utilities (e.g., mkfs for file system creation) |
-| Other `.c`/`.h` | Core kernel subsystems (proc, vm, file system, etc.) |
+This project modifies the xv6 operating system to implement a **Boosted Lottery Scheduler**. The scheduler uses lottery scheduling to proportionally share CPU time among processes and boosts the priority of sleeping processes to ensure fairness.
 
-## Getting Started
+---
 
-### Prerequisites
-- **ARM GCC Toolchain**: `arm-none-eabi-gcc` (for ARMv6/ARMv7) or `aarch64-linux-gnu-gcc` (for ARMv8/AArch64, Pi 5).
-- **QEMU**: For ARM system emulation and testing.
-- **Make**: Standard build utility.
+## Assignment 2: Implemented Features
 
-### Building xv6-pi5
-1. **Clone the Repository**:
-   ```bash
-   git clone -b xv6-pi5 https://github.com/bobbysharma05/OS.git
-   cd OS/src
-   ```
-2. **Build the Kernel and User Programs**:
-   ```bash
-   make clean
-   make
-   ```
-3. **Run in QEMU**:
-   ```bash
-   qemu-system-arm -M versatilepb -m 128 -cpu arm1176 -nographic -kernel kernel.elf
-   ```
-   You should see the xv6 shell prompt: `$`
+- **Lottery Scheduling:** The scheduler allocates CPU time to processes based on a lottery system. Each process is assigned a certain number of tickets, and whenever scheduling occurs, a random ticket is drawn. The process holding the winning ticket is scheduled to run for the next time slice. This ensures that, over time, the proportion of CPU time a process receives is relatively equal to the proportion of tickets it holds. The first process starts with 1 ticket, and child processes inherit their parent's ticket count. The scheduler logic and ticket management are implemented in `proc.c`.
 
-## Features
-- **Minimal Unix-like Kernel**: Process management, virtual memory, system calls.
-- **ARM Support**: All low-level CPU, trap, and MMU code adapted for ARM.
-- **Shell and Userland**: Simple shell and standard Unix utilities (ls, cat, echo, etc.).
-- **File System**: xv6-style file system with support for basic file operations.
-- **UART Console**: Serial console for kernel and shell I/O.
-- **QEMU Compatibility**: Easily testable in QEMU before deploying to hardware.
+- **Boosted Tickets:** When a process is blocked (eeither sleeping or waiting for I/O), it cannot participate in the lottery(can't be scheduled to run). To ensure fairness, once the process becomes runnable again, its tickets are temporarily doubled for the same number of ticks it was blocked. This "boost" compensates for the time it could not participate in the lottery, maintaining proportional CPU allocation.
 
-## Key ARM-Specific Components
-- **CPU and MMU Initialization**: Implemented in `arm.c`, `arm.h`, `mmu.h`, and associated assembly files. Handles setting up the ARM page tables, enabling the MMU, and configuring CPU modes.
-- **Trap and Interrupt Handling**: Assembly files (`asm.S`, `trap_asm.S`, `entry.S`) provide the trap vector and interrupt entry points. Kernel C code handles dispatch and processing.
-- **UART/Console**: `console.c` and device drivers in `device/` configure and use the Raspberry Pi’s UART for boot and shell interaction.
-- **Linker Script**: `kernel.ld` ensures the kernel is loaded at the correct physical address for ARM.
+- **Improved Sleep/Wake Mechanism:** Processes are only woken up when their sleep interval has expired. The older XV6 sleep/wake mechanism consisted of waking up each and every process sleeping on the appropriate channel each time an interrupt was called, which was essentially every tick. This led to quite a lot of unnecessary context switching and CPU usage. The new mechanism implemented here basically made it so that processes are only woken up when their sleep interval has actually expired. This was implemented in the `wakeup1` function where the sleep channel is checked against the current time to determine if the process should be woken up. The structure of every process was also changed in `proc.h` to include a sleep time field.
 
-## Porting Notes
-- **Architecture-Specific Files**: All files related to CPU initialization, assembly, MMU, and device drivers are ARM-specific and differ from the x86/RISC-V versions of xv6.
-- **Build System**: The `Makefile` and build scripts are set up for ARM toolchains. Adjust toolchain paths if necessary for your environment.
-- **Testing**: QEMU is used for initial bring-up. For real Raspberry Pi 5 hardware, further adaptation (especially for new peripherals) may be required.
+- **New System Calls:**
+  - `settickets(int pid, int tickets)`: Allows changing the number of tickets for a specific process.
+  - `srand(uint seed)`: Sets the seed for the random number generator used in the lottery scheduler.
+  - `getpinfo(struct pstat *)`: Returns information about all processes, including their ticket count, runtime, and boost status, for testing and debugging purposes.
 
-## Usage Example
+---
+
+
+
+## To run XV6, go into your repo and run
+
 ```bash
-$ ls
-.              1 1 512
-..             1 1 512
-cat            2 2 8620
-echo           2 3 8340
-grep           2 4 9528
-init           2 5 8560
-kill           2 6 8332
-ln             2 7 8364
-ls             2 8 9332
-mkdir          2 9 8412
-rm             2 10 8404
-sh             2 11 13532
-stressfs       2 12 8616
-usertests      2 13 32956
-wc             2 14 8904
-zombie         2 15 8184
-UNIX           2 16 7828
-console        3 17 0
-$
+make clean qemu
 ```
-This demonstrates a successful boot, shell launch, and file system access.
+
+---
+
+## Testing
+
+We have implemented various tests to test the added features in `test.c` file in `usr` directory.  
+You can run them all of them from the OS' shell with the command `test`.
